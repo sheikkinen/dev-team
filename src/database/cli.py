@@ -15,7 +15,7 @@ import json
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from database.models import get_database, get_job_model, get_pipeline_model
+from database.models import get_database, get_job_model, get_pipeline_model, get_research_result_model
 
 def cmd_status(args):
     """Show database status"""
@@ -465,6 +465,113 @@ def cmd_remove_job(args):
         print(f"❌ Error removing job: {e}")
         return 1
 
+def cmd_list_research(args):
+    """List research results"""
+    research_model = get_research_result_model()
+    results = research_model.list_results(limit=args.limit)
+    
+    if not results:
+        print("No research results found")
+        return
+    
+    # Format for table display
+    headers = ['Job ID', 'Topic', 'Words', 'Model', 'Completed']
+    rows = []
+    for result in results:
+        topic_short = (result['research_topic'][:40] + '...') if result['research_topic'] and len(result['research_topic']) > 40 else result['research_topic']
+        completed = result['completion_timestamp'][:19] if result['completion_timestamp'] else ''
+        rows.append([
+            result['job_id'], 
+            topic_short, 
+            result['word_count'], 
+            result['llm_model'] or 'unknown',
+            completed
+        ])
+    
+    print(tabulate(rows, headers=headers, tablefmt='grid'))
+
+def cmd_show_research(args):
+    """Show detailed research result"""
+    research_model = get_research_result_model()
+    result = research_model.get_result_by_job_id(args.job_id)
+    
+    if not result:
+        print(f"Research result for job {args.job_id} not found")
+        return 1
+    
+    print(f"📋 Research Result: {args.job_id}")
+    print(f"🎯 Topic: {result['research_topic']}")
+    print(f"🤖 Model: {result['llm_model'] or 'unknown'}")
+    print(f"📊 Word Count: {result['word_count']}")
+    print(f"⏰ Completed: {result['completion_timestamp']}")
+    print(f"🔗 Job ID: {result['job_id']}")
+    print("=" * 80)
+    print(result['generated_content'])
+    print("=" * 80)
+    
+    if result['metadata']:
+        print(f"📝 Metadata: {result['metadata']}")
+
+def cmd_export_research(args):
+    """Export research result to file"""
+    research_model = get_research_result_model()
+    result = research_model.get_result_by_job_id(args.job_id)
+    
+    if not result:
+        print(f"Research result for job {args.job_id} not found")
+        return 1
+    
+    # Generate filename if not provided
+    if args.output:
+        output_file = args.output
+    else:
+        safe_topic = "".join(c for c in result['research_topic'] if c.isalnum() or c in (' ', '-', '_')).rstrip()
+        safe_topic = safe_topic.replace(' ', '_')[:50]  # Limit length
+        output_file = f"research_{args.job_id}_{safe_topic}.md"
+    
+    try:
+        with open(output_file, 'w') as f:
+            f.write(f"# Research Result: {result['research_topic']}\n\n")
+            f.write(f"**Job ID:** {result['job_id']}\n")
+            f.write(f"**Model:** {result['llm_model'] or 'unknown'}\n")
+            f.write(f"**Word Count:** {result['word_count']}\n")
+            f.write(f"**Completed:** {result['completion_timestamp']}\n\n")
+            f.write("---\n\n")
+            f.write(result['generated_content'])
+            f.write("\n\n---\n")
+            if result['metadata']:
+                f.write(f"\n**Metadata:** {result['metadata']}\n")
+        
+        print(f"✅ Research result exported to: {output_file}")
+        return 0
+    except Exception as e:
+        print(f"❌ Error exporting research result: {e}")
+        return 1
+
+def cmd_search_research(args):
+    """Search research results"""
+    research_model = get_research_result_model()
+    results = research_model.search_results(args.term, limit=args.limit)
+    
+    if not results:
+        print(f"No research results found for '{args.term}'")
+        return
+    
+    print(f"🔍 Search results for '{args.term}':")
+    headers = ['Job ID', 'Topic', 'Words', 'Completed']
+    rows = []
+    for result in results:
+        topic_short = (result['research_topic'][:50] + '...') if result['research_topic'] and len(result['research_topic']) > 50 else result['research_topic']
+        completed = result['completion_timestamp'][:19] if result['completion_timestamp'] else ''
+        rows.append([
+            result['job_id'], 
+            topic_short, 
+            result['word_count'], 
+            completed
+        ])
+    
+    print(tabulate(rows, headers=headers, tablefmt='grid'))
+
 def main():
     parser = argparse.ArgumentParser(description="Database CLI for face-changer pipeline")
     subparsers = parser.add_subparsers(dest='command', help='Available commands')
@@ -533,6 +640,21 @@ def main():
     update_pf_parser.add_argument('status', choices=['pending', 'processing', 'completed', 'failed'],
                                  help='New status for the job')
     
+    # Research result commands
+    list_research_parser = subparsers.add_parser('list-research', help='List research results')
+    list_research_parser.add_argument('--limit', type=int, default=20, help='Limit number of results')
+    
+    show_research_parser = subparsers.add_parser('show-research', help='Show detailed research result')
+    show_research_parser.add_argument('job_id', help='Job ID to show research result for')
+    
+    export_research_parser = subparsers.add_parser('export-research', help='Export research result to file')
+    export_research_parser.add_argument('job_id', help='Job ID to export research result for')
+    export_research_parser.add_argument('--output', help='Output file path (auto-generated if not specified)')
+    
+    search_research_parser = subparsers.add_parser('search-research', help='Search research results')
+    search_research_parser.add_argument('term', help='Search term to look for in topics or content')
+    search_research_parser.add_argument('--limit', type=int, default=20, help='Limit number of results')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -564,6 +686,14 @@ def main():
             return cmd_remove_job(args)
         elif args.command == 'update-pony-flux-status':
             return cmd_update_pony_flux_status(args)
+        elif args.command == 'list-research':
+            cmd_list_research(args)
+        elif args.command == 'show-research':
+            return cmd_show_research(args)
+        elif args.command == 'export-research':
+            return cmd_export_research(args)
+        elif args.command == 'search-research':
+            cmd_search_research(args)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

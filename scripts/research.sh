@@ -1,21 +1,23 @@
 #!/bin/bash
 
 # Research Script
-# Usage: research.sh <topic> <prompt_file>
-# This script takes a topic and prompt file, substitutes the topic placeholder, and runs llm_langchain
+# Usage: research.sh <topic> <prompt_file> [job_id]
+# This script takes a topic and prompt file, substitutes the topic placeholder, runs llm_langchain,
+# and stores the result in the database
 
 set -e  # Exit on any error
 
 # Check if required arguments are provided
-if [ $# -ne 2 ]; then
-    echo "Usage: $0 <topic> <prompt_file>"
-    echo "Example: $0 'Mastermind Game Development' prompts/research_prompt.md"
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+    echo "Usage: $0 <topic> <prompt_file> [job_id]"
+    echo "Example: $0 'Mastermind Game Development' prompts/research_prompt.md research_abc123"
     exit 1
 fi
 
 # Get arguments
 topic="$1"
 prompt_file="$2"
+job_id="${3:-unknown}"  # Default to 'unknown' if not provided
 
 # Check if prompt file exists
 if [ ! -f "$prompt_file" ]; then
@@ -31,6 +33,7 @@ fi
 
 echo "🔍 Starting research on topic: '$topic'"
 echo "📄 Using prompt file: '$prompt_file'"
+echo "🆔 Job ID: '$job_id'"
 echo "---"
 
 # Read the prompt file and substitute the topic placeholder
@@ -44,12 +47,27 @@ echo "📋 Generated research prompt:"
 echo "$prompt_content"
 echo "---"
 
-# Execute llm_langchain with the processed prompt
+# Execute llm_langchain with the processed prompt and capture output
 echo "🤖 Running LLM LangChain with research prompt..."
-./scripts/llm_langchain.sh "$(cat "$temp_prompt_file")"
 
-# Clean up temporary file
+# Create temporary file for output
+temp_output_file=$(mktemp)
+./scripts/llm_langchain.sh "$(cat "$temp_prompt_file")" > "$temp_output_file" 2>&1
+
+# Display the output
+cat "$temp_output_file"
+
+# Store the result in the database
+echo "---"
+echo "💾 Storing research result in database..."
+
+# Use the separate Python script to store the result
+python scripts/store_research_result.py "$job_id" "$topic" "$prompt_file" "$temp_output_file"
+
+# Clean up temporary files
 rm "$temp_prompt_file"
+rm "$temp_output_file"
 
 echo "---"
 echo "✅ Research completed for topic: '$topic'"
+echo "🔗 Job ID: '$job_id'"

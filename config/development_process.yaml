@@ -39,7 +39,7 @@ actions:
   researching:
     - type: bash
       description: "Running research script with topic from database"
-      command: "scripts/research.sh '{topic}' 'prompts/research_prompt.md'"
+      command: "scripts/research.sh '{topic}' 'prompts/research_prompt.md' '{id}'"
       timeout: 300
       success: "research_done"
       error_mappings:

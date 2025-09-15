@@ -82,12 +82,30 @@ class Database:
                 )
             """)
             
+            # Research results - stores LLM-generated research content
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS research_results (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    job_id TEXT UNIQUE NOT NULL,
+                    research_topic TEXT NOT NULL,
+                    generated_content TEXT NOT NULL,
+                    prompt_used TEXT,
+                    llm_model TEXT,
+                    completion_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    word_count INTEGER,
+                    metadata TEXT,
+                    FOREIGN KEY (job_id) REFERENCES jobs (job_id)
+                )
+            """)
+            
             # Create indexes for better query performance
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs (created_at)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_results_job ON pipeline_results (job_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_state_job ON pipeline_state (job_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_state_base ON pipeline_state (job_id, base_filename)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_research_job ON research_results (job_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_research_timestamp ON research_results (completion_timestamp)")
             
             conn.commit()
 
@@ -391,6 +409,90 @@ class PipelineStateModel:
             """, (job_id, base_filename, step_name)).fetchone()
             return dict(row) if row else None
 
+class ResearchResultModel:
+    """Model for research result management"""
+    
+    def __init__(self, db: Database):
+        self.db = db
+    
+    def create_result(self, job_id: str, research_topic: str, generated_content: str,
+                     prompt_used: str = None, llm_model: str = None, 
+                     metadata: str = None) -> int:
+        """Create a new research result"""
+        word_count = len(generated_content.split()) if generated_content else 0
+        
+        with self.db._get_connection() as conn:
+            cursor = conn.execute("""
+                INSERT INTO research_results 
+                (job_id, research_topic, generated_content, prompt_used, llm_model, word_count, metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (job_id, research_topic, generated_content, prompt_used, llm_model, word_count, metadata))
+            return cursor.lastrowid
+    
+    def get_result_by_job_id(self, job_id: str) -> Optional[Dict[str, Any]]:
+        """Get research result by job ID"""
+        with self.db._get_connection() as conn:
+            row = conn.execute("""
+                SELECT * FROM research_results WHERE job_id = ?
+            """, (job_id,)).fetchone()
+            return dict(row) if row else None
+    
+    def list_results(self, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """List all research results with pagination"""
+        with self.db._get_connection() as conn:
+            rows = conn.execute("""
+                SELECT id, job_id, research_topic, word_count, completion_timestamp, llm_model
+                FROM research_results 
+                ORDER BY completion_timestamp DESC 
+                LIMIT ? OFFSET ?
+            """, (limit, offset)).fetchall()
+            return [dict(row) for row in rows]
+    
+    def update_result(self, job_id: str, **kwargs) -> bool:
+        """Update research result fields"""
+        if not kwargs:
+            return False
+        
+        # Build dynamic update query
+        set_clauses = []
+        params = []
+        for key, value in kwargs.items():
+            if key in ['research_topic', 'generated_content', 'prompt_used', 'llm_model', 'metadata']:
+                set_clauses.append(f"{key} = ?")
+                params.append(value)
+        
+        if not set_clauses:
+            return False
+        
+        params.append(job_id)
+        query = f"UPDATE research_results SET {', '.join(set_clauses)} WHERE job_id = ?"
+        
+        with self.db._get_connection() as conn:
+            cursor = conn.execute(query, params)
+            return cursor.rowcount > 0
+    
+    def delete_result(self, job_id: str) -> bool:
+        """Delete research result by job ID"""
+        with self.db._get_connection() as conn:
+            cursor = conn.execute("DELETE FROM research_results WHERE job_id = ?", (job_id,))
+            return cursor.rowcount > 0
+    
+    def search_results(self, search_term: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search research results by topic or content"""
+        with self.db._get_connection() as conn:
+            rows = conn.execute("""
+                SELECT id, job_id, research_topic, word_count, completion_timestamp, llm_model
+                FROM research_results 
+                WHERE research_topic LIKE ? OR generated_content LIKE ?
+                ORDER BY completion_timestamp DESC 
+                LIMIT ?
+            """, (f"%{search_term}%", f"%{search_term}%", limit)).fetchall()
+            return [dict(row) for row in rows]
+
 def get_pipeline_state_model() -> PipelineStateModel:
     """Get pipeline state model instance"""
     return PipelineStateModel(get_database())
+
+def get_research_result_model() -> ResearchResultModel:
+    """Get research result model instance"""
+    return ResearchResultModel(get_database())

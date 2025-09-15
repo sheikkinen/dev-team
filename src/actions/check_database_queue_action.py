@@ -42,7 +42,8 @@ class CheckDatabaseQueueAction(BaseAction):
             context['current_job'] = {
                 'id': job['job_id'],
                 'data': {
-                    'topic': job['user_prompt']  # research topic for parameter substitution
+                    'topic': job['user_prompt'],  # research topic for parameter substitution
+                    'id': job['job_id']           # job_id for parameter substitution
                 }
             }
             
