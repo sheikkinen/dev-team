@@ -1,16 +1,15 @@
 """
-LangChainClient - High-level client for LLM interactions
+LangChain Client - Unified LLM interface
 
 IMPORTANT: Changes via Change Management, see CLAUDE.md
 
-Provides a clean interface for LangChain LLM interactions with proper error handling and logging.
-Supports multiple providers (OpenAI, Anthropic) with automatic configuration and dependency management.
-Designed to integrate seamlessly with the dev-team state machine workflow system.
+Provides a clean, unified interface for LangChain LLM interactions with proper 
+error handling and logging. Supports multiple providers (OpenAI, Anthropic) 
+with automatic configuration and dependency management.
 
 KEY FILES:
-- src/langchain_integration/wrapper.py - Core LangChain functionality
-- scripts/llm_langchain.sh - Shell wrapper for command-line usage
-- config/langchain_hello_world.yaml - State machine integration example
+- scripts/langchain_cli.py - Command-line interface
+- scripts/llm_langchain.sh - Shell wrapper
 
 KEY FUNCTIONS:
 - chat(prompt) - Send prompt to LLM and get response
@@ -18,21 +17,75 @@ KEY FUNCTIONS:
 - get_status() - Check client configuration and availability
 """
 
+import os
+import sys
 import logging
 from typing import Optional, Dict, Any
 from pathlib import Path
-import os
-import sys
 
 logger = logging.getLogger(__name__)
 
 
+def load_env():
+    """Load environment variables from .env file."""
+    env_file = Path(".env")
+    if env_file.exists():
+        with open(env_file) as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ[key] = value
+        logger.debug("Loaded environment variables from .env file")
+
+
+def install_dependencies() -> bool:
+    """Check if LangChain dependencies are available."""
+    # Temporarily remove paths that could cause module conflicts
+    original_path = sys.path.copy()
+    project_src = str(Path(__file__).parent.parent)
+    paths_to_remove = [p for p in sys.path if project_src in p]
+    
+    for path in paths_to_remove:
+        sys.path.remove(path)
+    
+    try:
+        import langchain_anthropic
+        import langchain_core
+        return True
+    except ImportError as e:
+        print(f"❌ Missing dependencies: {e}")
+        print("💡 Install with: pip install langchain-anthropic langchain-core")
+        return False
+    finally:
+        # Restore original path
+        sys.path[:] = original_path
+
+
+def get_available_models():
+    """Get list of available models for each provider."""
+    return {
+        "anthropic": [
+            "claude-sonnet-4-20250514",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-haiku-20240307",
+            "claude-3-sonnet-20240229", 
+            "claude-3-opus-20240229"
+        ],
+        "openai": [
+            "gpt-4o-mini",
+            "gpt-4o",
+            "gpt-4-turbo"
+        ]
+    }
+
+
 class LangChainClient:
     """
-    High-level client for LangChain LLM interactions.
+    Unified client for LangChain LLM interactions.
     
     Provides a simplified interface for common LLM operations with proper
-    error handling and logging, following dev-team project patterns.
+    error handling and logging.
     """
     
     def __init__(self, provider: Optional[str] = None, model: Optional[str] = None):
@@ -40,29 +93,24 @@ class LangChainClient:
         Initialize the LangChain client.
         
         Args:
-            provider: LLM provider ("openai" or "anthropic"). Auto-detected if None.
-            model: Specific model to use. Uses default if None.
+            provider: LLM provider ("openai" or "anthropic"). Defaults to "anthropic".
+            model: Specific model to use. Uses provider default if None.
         """
-        self.provider = provider or "anthropic"  # Default to Anthropic
+        self.provider = provider or "anthropic"
         self.model = model
         self.api_key = None
         self.llm = None
         
-        # Load environment and initialize
-        self._load_environment()
+        # Load environment and validate setup
+        load_env()
         self._validate_setup()
-    
-    def _load_environment(self):
-        """Load environment variables from .env file."""
-        try:
-            from .wrapper import load_env
-            load_env()
-            logger.debug("Environment variables loaded")
-        except Exception as e:
-            logger.warning(f"Failed to load environment: {e}")
     
     def _validate_setup(self):
         """Validate that the client can be used."""
+        # Check dependencies
+        if not install_dependencies():
+            raise RuntimeError("LangChain dependencies not available")
+        
         # Check API key
         if self.provider == "anthropic":
             self.api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -80,23 +128,20 @@ class LangChainClient:
     def _get_llm(self):
         """Get or create LLM instance."""
         if self.llm is None:
-            # Install dependencies if needed
-            from .wrapper import install_dependencies
-            if not install_dependencies():
-                raise RuntimeError("Failed to install LangChain dependencies")
-            
-            # Create LLM instance with path management to avoid conflicts
+            # Temporarily remove paths that could cause module conflicts
             original_path = sys.path.copy()
             project_src = str(Path(__file__).parent.parent)
-            if project_src in sys.path:
-                sys.path.remove(project_src)
+            paths_to_remove = [p for p in sys.path if project_src in p]
+            
+            for path in paths_to_remove:
+                sys.path.remove(path)
             
             try:
                 if self.provider == "anthropic":
                     from langchain_anthropic import ChatAnthropic
                     self.llm = ChatAnthropic(
                         api_key=self.api_key,
-                        model=self.model or "claude-3-haiku-20240307",
+                        model=self.model or "claude-sonnet-4-20250514",
                         temperature=0.1,
                         max_tokens=4000,
                     )
@@ -108,6 +153,8 @@ class LangChainClient:
                         temperature=0.1,
                         max_tokens=4000,
                     )
+            except Exception as e:
+                raise RuntimeError(f"Failed to create LLM instance: {e}")
             finally:
                 # Restore original path
                 sys.path[:] = original_path
@@ -128,31 +175,28 @@ class LangChainClient:
         Raises:
             RuntimeError: If LLM request fails
         """
+        # Temporarily remove paths that could cause module conflicts
+        original_path = sys.path.copy()
+        project_src = str(Path(__file__).parent.parent)
+        paths_to_remove = [p for p in sys.path if project_src in p]
+        
+        for path in paths_to_remove:
+            sys.path.remove(path)
+        
         try:
-            from .wrapper import chat_with_claude
-            if self.provider == "anthropic":
-                return chat_with_claude(prompt)
-            else:
-                # For other providers, use direct LLM access
-                llm = self._get_llm()
-                from langchain_core.messages import HumanMessage
-                
-                # Remove project path to avoid conflicts
-                original_path = sys.path.copy()
-                project_src = str(Path(__file__).parent.parent)
-                if project_src in sys.path:
-                    sys.path.remove(project_src)
-                
-                try:
-                    messages = [HumanMessage(content=prompt)]
-                    response = llm.invoke(messages, **kwargs)
-                    return response.content
-                finally:
-                    sys.path[:] = original_path
+            llm = self._get_llm()
+            from langchain_core.messages import HumanMessage
+            
+            messages = [HumanMessage(content=prompt)]
+            response = llm.invoke(messages, **kwargs)
+            return response.content
                     
         except Exception as e:
             logger.error(f"Chat request failed: {e}")
             raise RuntimeError(f"LLM chat failed: {e}")
+        finally:
+            # Restore original path
+            sys.path[:] = original_path
     
     def analyze_code(self, code: str, language: str = "python", task: str = "analyze") -> str:
         """
@@ -194,5 +238,13 @@ Provide a clear, structured analysis including:
             "model": self.model,
             "has_api_key": bool(self.api_key),
             "api_key_source": "environment" if self.api_key else "not_found",
-            "status": "ready" if self.api_key else "not_configured"
+            "status": "ready" if self.api_key else "not_configured",
+            "available_models": get_available_models()
         }
+
+
+# Legacy compatibility function
+def chat_with_claude(prompt: str) -> str:
+    """Legacy function for backward compatibility."""
+    client = LangChainClient(provider="anthropic")
+    return client.chat(prompt)
