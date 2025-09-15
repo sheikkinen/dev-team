@@ -367,6 +367,43 @@ def cmd_add_job(args):
         print(f"❌ Error creating job: {e}")
         return 1
 
+def cmd_add_research_job(args):
+    """Add a new research job to the database"""
+    import uuid
+    
+    # Generate unique job ID if not provided
+    job_id = args.job_id if hasattr(args, 'job_id') and args.job_id else f"research_{uuid.uuid4().hex[:8]}"
+    
+    # Use JobModel directly to add research job
+    job_model = get_job_model()
+    
+    try:
+        # Add job with research topic as the prompt
+        job_model.create_job(
+            job_id=job_id,
+            input_image_path="/dev/null",  # Placeholder path for research jobs
+            user_prompt=args.topic,        # Research topic becomes the prompt
+            padding_factor=1.0,            # Default values for research
+            mask_padding_factor=1.0
+        )
+        
+        print(f"✅ Research job created successfully!")
+        print(f"   Job ID: {job_id}")
+        print(f"   Research Topic: {args.topic}")
+        print(f"   Status: pending")
+        print()
+        print(f"🔄 The job is now in the database queue and will be processed")
+        print(f"   by the state machine when it transitions to 'researching' state.")
+        print()
+        print(f"💡 To monitor progress:")
+        print(f"   python src/database/cli.py status")
+        print(f"   python src/database/cli.py details {job_id}")
+        
+        return 0
+    except Exception as e:
+        print(f"❌ Error creating research job: {e}")
+        return 1
+
 def cmd_update_pony_flux_status(args):
     """Update pony-flux job status"""
     from database.models import Database
@@ -480,6 +517,11 @@ def main():
     add_job_parser.add_argument('--mask-padding-factor', type=float, default=1.2,
                                help='Mask padding factor (default: 1.2)')
     
+    # Add research job command
+    add_research_parser = subparsers.add_parser('add-research', help='Add a new research job to the database')
+    add_research_parser.add_argument('topic', help='Research topic to investigate')
+    add_research_parser.add_argument('--job-id', help='Optional custom job ID (auto-generated if not provided)')
+    
     # Remove job command
     remove_job_parser = subparsers.add_parser('remove-job', help='Remove a job from the database')
     remove_job_parser.add_argument('job_id', help='Job ID to remove')
@@ -516,6 +558,8 @@ def main():
             cmd_cleanup_pony(args)
         elif args.command == 'add-job':
             return cmd_add_job(args)
+        elif args.command == 'add-research':
+            return cmd_add_research_job(args)
         elif args.command == 'remove-job':
             return cmd_remove_job(args)
         elif args.command == 'update-pony-flux-status':

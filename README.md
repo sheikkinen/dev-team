@@ -60,13 +60,17 @@ The state machine implements a complete development process with database persis
 - **Dynamic action loading**: Pluggable action system for extensibility
 - **Configuration as code**: Complete workflows defined in YAML
 
-### Development Process States
-1. **Research**: Deep research, website analysis, competitor analysis
-2. **Product Design**: Requirements analysis, user stories, use cases, domain model
-3. **Development Loop** (Kanban-style):
-   - Backlog → Architecture → Test Planning → Module Design
-   - Implementation → UI/UX Design → Frontend Development
-   - Testing → Demo → Review
+### Current Workflow States
+1. **Waiting for Job**: Monitoring database queue for new research topics
+2. **Researching**: Executing research script with LLM integration to generate Game Design Documents
+3. **Completed**: Research finished and results recorded
+
+### Core Features
+- **Event-driven workflow**: State transitions triggered by database events
+- **Database integration**: SQLite-based job tracking and research results
+- **LLM integration**: Automated research via LangChain (Anthropic Claude, OpenAI GPT)
+- **Game-focused research**: All topics generate comprehensive Game Design Documents
+- **Template-based prompts**: Consistent research structure and quality
 
 ## Project Structure
 
@@ -89,36 +93,29 @@ dev-team/
 │   │   ├── sleep_action.py   # Demo action (1-second sleep)
 │   │   ├── accepted_action.py # Auto-acceptance for demo
 │   │   ├── database_record_action.py # Database recording
-│   │   └── check_database_queue_action.py # Queue checking
+│   │   └── check_database_queue_action.py # Database queue checking (uses JobModel directly)
 │   ├── database/             # Database models and CLI
 │   │   ├── __init__.py
 │   │   ├── models.py         # Database models and schema
 │   │   └── cli.py            # Database command-line interface
-│   ├── database_queue/       # Queue implementation
-│   │   ├── __init__.py
-│   │   └── database_queue.py # Database-backed queue
 │   └── langchain_integration/ # LLM integration
 │       ├── __init__.py
 │       └── client.py         # Unified LangChain client
 ├── config/                   # Configuration files
-│   ├── development_process.yaml       # Full process configuration
-│   ├── development_process_demo.yaml  # Demo version (auto-completes)
-│   ├── development_process_demo_db.yaml # Demo with database tracking
-│   └── bash_demo.yaml        # Bash action demonstration config
+│   └── development_process.yaml       # Research workflow configuration
 ├── scripts/                  # Executable scripts
-│   └── run_process.py        # CLI to run the state machine
-├── demos/                    # Demo and example scripts
-│   ├── demo_database.py      # Complete database demo
-│   ├── demo_database_reader.py # Database content viewer
-│   ├── bash_direct_test.py   # Direct bash action test
-│   └── bash_demo_fixed.py    # Bash action with state machine
+│   ├── run_process.py        # CLI to run the state machine
+│   ├── research.sh           # Research script with LLM integration
+│   ├── llm_langchain.sh      # LangChain wrapper script
+│   └── langchain_cli.py      # LangChain Python CLI
+├── prompts/                  # LLM prompt templates
+│   └── research_prompt.md    # Game Design Document research prompt
 ├── docs/                     # Documentation
 │   ├── database.md           # Database implementation docs
 │   ├── process.md            # Original process specification
 │   └── todo.md               # Development tasks and notes
 ├── data/                     # Data storage
 │   └── pipeline.db           # SQLite database (created automatically)
-├── dev.py                    # Convenient launcher script
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This file
 ```
@@ -151,73 +148,134 @@ echo "OPENAI_API_KEY=your-api-key-here" > .env
 
 ## Quick Start
 
-Use the convenient launcher script for common tasks:
+### Research Workflow Quick Commands
 
 ```bash
-# Run complete database demo
-python dev.py demo
+# Add a research job for game development
+python src/database/cli.py add-research "Your Game Concept"
 
-# View database contents
-python dev.py database
+# Run the research state machine
+python scripts/run_process.py --config config/development_process.yaml
 
-# Run development process
-python dev.py process
+# Check status and results
+python src/database/cli.py status
+python src/database/cli.py list
+```
 
-# Test bash action functionality
-python dev.py bash-test
+### Database Management
 
-# Run bash action demo with state machine
-python dev.py bash-demo
-
+```bash
 # Database CLI operations
-python dev.py cli status
-python dev.py cli list
+python src/database/cli.py status
+python src/database/cli.py list
+python src/database/cli.py details <job_id>
 
-# Show help
-python dev.py help
+# Show help for all available commands
+python src/database/cli.py --help
 ```
 
 ## Detailed Usage
 
+### Research Workflow (Game Design Documents)
+
+The system now provides an automated research workflow for game development topics:
+
+#### Adding Research Jobs
+
+```bash
+# Add a research job with a game concept topic
+python src/database/cli.py add-research "Retro Arcade Space Shooter Game"
+
+# Add research job with custom job ID
+python src/database/cli.py add-research "Puzzle Platformer Adventure" --job-id custom_research_001
+
+# Examples of game research topics
+python src/database/cli.py add-research "Medieval Fantasy RPG with Crafting System"
+python src/database/cli.py add-research "Multiplayer Tower Defense Strategy"
+python src/database/cli.py add-research "VR Horror Escape Room Experience"
+```
+
+#### Running the Research State Machine
+
+```bash
+# Run the research state machine (monitors database for jobs)
+python scripts/run_process.py --config config/development_process.yaml
+
+# Run with debug logging to see detailed workflow
+python scripts/run_process.py --config config/development_process.yaml --debug
+```
+
+#### Monitoring Research Progress
+
+```bash
+# Check database status
+python src/database/cli.py status
+
+# List all jobs (shows pending, processing, completed)
+python src/database/cli.py list
+
+# List only pending research jobs
+python src/database/cli.py list --status pending
+
+# Get details of a specific research job
+python src/database/cli.py details <job_id>
+```
+
+#### Research Workflow Process
+
+1. **Add Research Job**: Use CLI to add research topic to database
+2. **State Machine Detects Job**: Automatically transitions from `waiting_for_job` → `researching`
+3. **Research Execution**: Runs `scripts/research.sh` with topic from database
+4. **LLM Integration**: Calls LangChain to generate comprehensive Game Design Document
+5. **Completion**: Transitions to `completed` state and records results
+
+#### Example Research Output
+
+The system generates comprehensive Game Design Documents including:
+- **Executive Summary**: High-level game vision and goals
+- **Game Overview**: Core concept, genre, platform, and target audience  
+- **Gameplay Mechanics**: Detailed system descriptions and interactions
+- **Technical Specifications**: Engine requirements, performance targets
+- **Art Bible**: Visual style guide and asset requirements
+- **Audio Design**: Sound effects, music, and voice direction
+- **Monetization Plan**: Business model and revenue projections
+- **Development Timeline**: Milestones and resource requirements
+- **Risk Assessment**: Technical and market risks with mitigation strategies
+
 ### Run the Development Process
 
 ```bash
-# Run the demo version (auto-completes)
-python scripts/run_process.py --config config/development_process_demo.yaml
-
-# Run with debug logging
-python scripts/run_process.py --config config/development_process_demo.yaml --debug
-
 # Run the full interactive version (requires manual acceptance)
 python scripts/run_process.py --config config/development_process.yaml
 
-# Run with database tracking
-python scripts/run_process.py --config config/development_process_demo_db.yaml
+# Run with debug logging
+python scripts/run_process.py --config config/development_process.yaml --debug
 ```
 
-### Database Demos
+### Database Operations
+
+### Database Operations
 
 ```bash
-# Run complete database demo (creates jobs + runs process + shows results)
-python demos/demo_database.py
-
-# View current database contents
-python demos/demo_database_reader.py
-
 # Database CLI operations
 python src/database/cli.py status
 python src/database/cli.py list
-python src/database/cli.py add-job <job_id> <project_path>
+python src/database/cli.py details <job_id>
+
+# Add research jobs
+python src/database/cli.py add-research "Your Game Concept Here"
+
+# Remove jobs if needed
+python src/database/cli.py remove-job <job_id> --reason "Reason for removal"
 ```
 
-### Bash Action Testing
+### Testing Research Script Directly
 
 ```bash
-# Test bash action directly (parameter substitution demo)
-python demos/bash_direct_test.py
+# Test research script directly with a topic
+./scripts/research.sh "Test Game Concept" "prompts/research_prompt.md"
 
-# Test bash action with state machine integration
-python demos/bash_demo_fixed.py
+# This will generate a Game Design Document for the specified topic
 ```
 
 ### Example Output

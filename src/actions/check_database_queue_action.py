@@ -14,7 +14,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from actions.base import BaseAction
-from database_queue.database_queue import DatabaseQueue
 from database.models import get_job_model
 
 logger = logging.getLogger(__name__)
@@ -27,45 +26,44 @@ class CheckDatabaseQueueAction(BaseAction):
     
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        self.queue = DatabaseQueue()
         self.job_model = get_job_model()
     
     async def execute(self, context: Dict[str, Any]) -> str:
-        """Check database queue for next job"""
-        try:
-            # First, clean up any processing jobs with missing input files
-            self._cleanup_jobs_with_missing_files()
+        print("CheckDatabaseQueueAction: Executing")
+        
+        # Get next job directly from JobModel
+        job = self.job_model.get_next_job()
+        
+        if job:
+            print(f"CheckDatabaseQueueAction: Found job {job['job_id']}: {job['user_prompt']}")
             
-            job = self.queue.get_next_job()
-            
-            if job:
-                # Store job in context in the same format as file-based queue
-                context['current_job'] = {
-                    'id': job['id'],
-                    'data': {
-                        'id': job['id'],  # Include job ID in data for template substitution
-                        'input_image': job['input_image'],
-                        'user_prompt': job['user_prompt'],
-                        'padding_factor': job['padding_factor'],
-                        'mask_padding_factor': job['mask_padding_factor'],
-                        'event': job['event']
-                    }
+            # Set up context for bash_action parameter substitution
+            # bash_action expects context['current_job']['data'][param_name]
+            context['current_job'] = {
+                'id': job['job_id'],
+                'data': {
+                    'topic': job['user_prompt']  # research topic for parameter substitution
                 }
-                
-                # Store queue in context for job completion
-                context['queue'] = self.queue
-                
-                logger.debug(f"Job {job['id']} retrieved from database queue")
-                logger.debug(f"Job {job['id']} specifies event: {job['event']}")
-                
-                return job['event']
-            else:
-                # Reduce verbosity for idle cycles
-                return "no_jobs"
-                
-        except Exception as e:
-            logger.error(f"Error checking database queue: {e}")
-            return "error"
+            }
+            
+            # Also keep the original job format for compatibility
+            context['job'] = {
+                'id': job['job_id'],
+                'topic': job['user_prompt'],  # research topic is stored as user_prompt
+                'status': job['status'],
+                'created_at': job['created_at']
+            }
+            
+            # Mark job as completed
+            self.job_model.complete_job(job['job_id'])
+            print(f"CheckDatabaseQueueAction: Marked job {job['job_id']} as completed")
+            
+            # Return event to trigger state transition to researching
+            return "job_added"
+        else:
+            print("CheckDatabaseQueueAction: No jobs found")
+            # Return no event (None or empty string) to stay in current state
+            return ""
     
     def _cleanup_jobs_with_missing_files(self):
         """Reset processing jobs that reference non-existent files"""

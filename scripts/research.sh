@@ -2,7 +2,7 @@
 
 # Research Script
 # Usage: research.sh <topic> <prompt_file>
-# This script takes a topic and prompt file, substitutes the topic placeholder, and runs llm_claude
+# This script takes a topic and prompt file, substitutes the topic placeholder, and runs llm_langchain
 
 set -e  # Exit on any error
 
@@ -23,9 +23,9 @@ if [ ! -f "$prompt_file" ]; then
     exit 1
 fi
 
-# Check if llm_claude.sh exists
-if [ ! -f "./scripts/llm_claude.sh" ]; then
-    echo "Error: llm_claude.sh script not found at ./scripts/llm_claude.sh"
+# Check if llm_langchain.sh exists
+if [ ! -f "./scripts/llm_langchain.sh" ]; then
+    echo "Error: llm_langchain.sh script not found at ./scripts/llm_langchain.sh"
     exit 1
 fi
 
@@ -44,9 +44,9 @@ echo "📋 Generated research prompt:"
 echo "$prompt_content"
 echo "---"
 
-# Execute llm_claude with the processed prompt
-echo "🤖 Running LLM Claude with research prompt..."
-./scripts/llm_claude.sh "$(cat "$temp_prompt_file")"
+# Execute llm_langchain with the processed prompt
+echo "🤖 Running LLM LangChain with research prompt..."
+./scripts/llm_langchain.sh "$(cat "$temp_prompt_file")"
 
 # Clean up temporary file
 rm "$temp_prompt_file"
