@@ -81,3 +81,10 @@ Check /Volumes/Backup-2021/deviant-working/loop.sh for LLM usage example: delega
 
 Create scripts/llm_claude.sh and use it as bash_action - start with hello world task.
 
+check claude --help,
+
+build a srcipts/llm_claude.sh as a wrapper:
+claude --add-dir ./images --permission-mode acceptEdits -p "$prompt"
+
+check README for structure. integrate llm_claude as bash_action (hello world)
+
