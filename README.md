@@ -2,9 +2,56 @@
 
 This project implements a state machine-based workflow for software development processes with database tracking and bash command execution capabilities. Each step in the development lifecycle is represented as a state with associated actions, providing a structured and trackable approach to team development workflows.
 
+## 🏛️ Architectural Analysis Summary
+
+**System Classification**: Event-Driven State Machine with Plugin Architecture  
+**Domain**: Software Development Workflow Automation  
+**Key Patterns**: Finite State Machine, Plugin Architecture, Repository Pattern, Configuration-as-Code
+
+### 🎯 Core Architectural Findings
+
+**Event-Driven Design**: The system implements a finite state machine where all state transitions are triggered by discrete events, providing predictable and traceable workflow execution. This design enables clear audit trails and simplified debugging.
+
+**Pluggable Action System**: A sophisticated plugin architecture allows dynamic loading of action types at runtime. Actions implement a common `BaseAction` interface and are configured via YAML, enabling extensibility without core engine modifications.
+
+**Database-Centric Persistence**: SQLite provides persistent job queuing, pipeline step tracking, and inter-process communication. The three-table design (`jobs`, `pipeline_results`, `pipeline_state`) supports complete workflow lifecycle management.
+
+**Configuration-as-Code**: Complete workflows are defined in YAML files, making them accessible to non-programmers and version-controllable alongside source code. Different configurations support development, demo, and production environments.
+
+**Security by Design**: Parameter substitution using templates prevents injection attacks, while automatic quoting handles file paths safely. Error mapping provides sophisticated error handling with configurable recovery strategies.
+
+> 📚 **Complete Analysis**: See [`archaeology/`](archaeology/) for detailed architectural documentation including visual diagrams, component analysis, and architectural decision records. Start with the [Architecture Index](archaeology/INDEX.md).
+
 ## Overview
 
 The state machine implements a complete development process with database persistence and extensible action system including:
+
+### Core Components (Archaeological Analysis)
+
+**🎯 State Machine Engine** (`src/state_machine/engine.py`)
+- YAML-driven finite state machine with event processing
+- Dynamic action loading with pluggable architecture
+- Context management and error recovery mechanisms
+- Supports wildcard transitions for robust error handling
+
+**⚡ Action System** (`src/actions/`)
+- Plugin architecture with `BaseAction` interface
+- `BashAction`: Shell command execution with parameter substitution and error mapping
+- `DatabaseAction`: Pipeline step recording and job lifecycle management
+- `LangChainAction`: Multi-provider LLM integration (Anthropic Claude, OpenAI GPT)
+- Template-based parameter substitution prevents injection attacks
+
+**🗄️ Database Layer** (`src/database/models.py`)
+- Three-table SQLite design: `jobs`, `pipeline_results`, `pipeline_state`
+- Repository pattern with `JobModel`, `PipelineResultModel`, `PipelineStateModel`
+- Database-mediated inter-process communication
+- FIFO job queue with atomic operations and orphaned job recovery
+
+**🤖 LangChain Integration** (`src/langchain_integration/client.py`)
+- Unified interface for multiple LLM providers
+- Sophisticated import path management to prevent module conflicts
+- Environment-based API key management with graceful degradation
+- Support for both Anthropic Claude and OpenAI GPT models
 
 ### Core Features
 - **Event-driven workflow**: State transitions triggered by events
@@ -25,6 +72,12 @@ The state machine implements a complete development process with database persis
 
 ```
 dev-team/
+├── archaeology/              # 📚 Complete architectural documentation
+│   ├── README.md            # Main architecture overview
+│   ├── INDEX.md             # Documentation navigation guide  
+│   ├── src/                 # Component-level architecture analysis
+│   ├── config/              # Configuration and deployment guide
+│   └── docs/                # Visual diagrams and ADRs
 ├── src/                      # Source code
 │   ├── state_machine/        # State machine engine
 │   │   ├── __init__.py
@@ -41,9 +94,12 @@ dev-team/
 │   │   ├── __init__.py
 │   │   ├── models.py         # Database models and schema
 │   │   └── cli.py            # Database command-line interface
-│   └── queue/                # Queue implementation
+│   ├── database_queue/       # Queue implementation
+│   │   ├── __init__.py
+│   │   └── database_queue.py # Database-backed queue
+│   └── langchain_integration/ # LLM integration
 │       ├── __init__.py
-│       └── database_queue.py # Database-backed queue
+│       └── client.py         # Unified LangChain client
 ├── config/                   # Configuration files
 │   ├── development_process.yaml       # Full process configuration
 │   ├── development_process_demo.yaml  # Demo version (auto-completes)
@@ -73,6 +129,23 @@ dev-team/
 ```bash
 pip install -r requirements.txt
 ```
+
+### Optional: LangChain Integration
+
+For LLM integration features, install additional dependencies:
+```bash
+pip install langchain-anthropic langchain-core
+```
+
+Set up environment variables:
+```bash
+# Create .env file
+echo "ANTHROPIC_API_KEY=your-api-key-here" > .env
+# or
+echo "OPENAI_API_KEY=your-api-key-here" > .env
+```
+
+> 📋 **Detailed Setup**: See [Configuration & Deployment Guide](archaeology/config/README.md) for comprehensive installation and deployment instructions.
 
 ## Usage
 
@@ -299,17 +372,27 @@ class CustomAction(BaseAction):
 
 ## Architecture
 
-This implementation demonstrates advanced state machine patterns:
+This implementation demonstrates advanced state machine patterns with sophisticated design decisions:
 
-- **Event-driven design**: All state changes triggered by events
-- **Configuration as code**: Complete workflow defined in YAML
-- **Pluggable actions**: Extensible action system with dynamic imports
-- **Database persistence**: SQLite-based job tracking and pipeline results
-- **Command execution**: Bash action with parameter substitution and error handling
-- **Separation of concerns**: Engine, actions, and configuration are decoupled
-- **Queue management**: Database-backed job queue for workflow coordination
+### 🎯 Key Architectural Decisions (from Archaeological Analysis)
 
-The architecture is based on the battle-tested state machine implementation from the face-changer project, providing enterprise-grade reliability and extensibility.
+**ADR-001: Event-Driven State Machine** - Chosen for predictable workflow execution and clear audit trails. All state transitions are event-triggered, enabling deterministic behavior and simplified debugging.
+
+**ADR-002: Plugin-Based Action Architecture** - Enables extensibility without core engine modifications. Actions are dynamically loaded at runtime, providing clean separation of concerns and easy testing.
+
+**ADR-003: SQLite for Persistence and Queuing** - Selected for zero external dependencies while providing ACID compliance. Three-table design supports complete job lifecycle with atomic queue operations.
+
+**ADR-004: YAML Configuration-as-Code** - Makes workflows accessible to non-programmers and version-controllable. Supports multiple environments (dev/demo/production) through configuration inheritance.
+
+**ADR-005: Database-Mediated Inter-Process Communication** - Uses database tables for coordination between Python components and shell scripts, providing persistence and atomic operations.
+
+### 🏗️ Core Design Patterns
+
+- **Finite State Machine**: Predictable workflow execution with event-driven transitions
+- **Plugin Architecture**: Dynamic action loading with consistent interfaces  
+- **Repository Pattern**: Clean data access abstraction with model classes
+- **Template Method**: Extensible action execution with pluggable implementations
+- **Configuration-as-Code**: Declarative workflow definition in YAML
 
 ## Original Specification
 
