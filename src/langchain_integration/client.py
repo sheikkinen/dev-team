@@ -41,25 +41,14 @@ def load_env():
 
 def install_dependencies() -> bool:
     """Check if LangChain dependencies are available."""
-    # Temporarily remove paths that could cause module conflicts
-    original_path = sys.path.copy()
-    project_src = str(Path(__file__).parent.parent)
-    paths_to_remove = [p for p in sys.path if project_src in p]
-    
-    for path in paths_to_remove:
-        sys.path.remove(path)
-    
     try:
         import langchain_anthropic
         import langchain_core
         return True
     except ImportError as e:
-        print(f"❌ Missing dependencies: {e}")
-        print("💡 Install with: pip install langchain-anthropic langchain-core")
+        print(f"Missing dependencies: {e}")
+        print("Install with: pip install langchain-anthropic langchain-core")
         return False
-    finally:
-        # Restore original path
-        sys.path[:] = original_path
 
 
 def get_available_models():
@@ -68,14 +57,11 @@ def get_available_models():
         "anthropic": [
             "claude-sonnet-4-20250514",
             "claude-3-5-sonnet-20241022",
-            "claude-3-haiku-20240307",
-            "claude-3-sonnet-20240229", 
-            "claude-3-opus-20240229"
+            "claude-3-haiku-20240307"
         ],
         "openai": [
             "gpt-4o-mini",
-            "gpt-4o",
-            "gpt-4-turbo"
+            "gpt-4o"
         ]
     }
 
@@ -198,34 +184,6 @@ class LangChainClient:
             # Restore original path
             sys.path[:] = original_path
     
-    def analyze_code(self, code: str, language: str = "python", task: str = "analyze") -> str:
-        """
-        Analyze code with a specialized prompt.
-        
-        Args:
-            code: Source code to analyze
-            language: Programming language
-            task: Analysis task (analyze, review, explain, etc.)
-            
-        Returns:
-            Analysis result
-        """
-        prompt = f"""
-Please {task} the following {language} code:
-
-```{language}
-{code}
-```
-
-Provide a clear, structured analysis including:
-1. Purpose and functionality
-2. Code quality observations
-3. Potential improvements
-4. Architecture patterns used
-"""
-        
-        return self.chat(prompt)
-    
     def get_status(self) -> Dict[str, Any]:
         """
         Get information about the current client configuration.
@@ -237,14 +195,6 @@ Provide a clear, structured analysis including:
             "provider": self.provider,
             "model": self.model,
             "has_api_key": bool(self.api_key),
-            "api_key_source": "environment" if self.api_key else "not_found",
-            "status": "ready" if self.api_key else "not_configured",
-            "available_models": get_available_models()
+            "status": "ready" if self.api_key else "not_configured"
         }
 
-
-# Legacy compatibility function
-def chat_with_claude(prompt: str) -> str:
-    """Legacy function for backward compatibility."""
-    client = LangChainClient(provider="anthropic")
-    return client.chat(prompt)

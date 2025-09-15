@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from actions.base import BaseAction
-from queue.database_queue import DatabaseQueue
+from database_queue.database_queue import DatabaseQueue
 from database.models import get_job_model
 
 logger = logging.getLogger(__name__)

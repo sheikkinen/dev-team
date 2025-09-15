@@ -7,11 +7,10 @@ Supports Anthropic Claude and OpenAI models with minimal configuration.
 Primary interface: LangChainClient for all LLM operations
 """
 
-from .client import LangChainClient, chat_with_claude, load_env, install_dependencies, get_available_models
+from .client import LangChainClient, load_env, install_dependencies, get_available_models
 
 __all__ = [
     'LangChainClient',      # Primary interface
-    'chat_with_claude',     # Legacy compatibility
     'load_env',            # Utility function
     'install_dependencies', # Utility function
     'get_available_models'  # Utility function
