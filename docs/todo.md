@@ -88,3 +88,16 @@ claude --add-dir ./images --permission-mode acceptEdits -p "$prompt"
 
 check README for structure. integrate llm_claude as bash_action (hello world)
 
+## Research Phase Implementation
+
+Creating research capability:
+- [ ] Add creating research phase to todo.md
+- [ ] Create prompts folder structure  
+- [ ] Create research prompt template with topic placeholder
+- [ ] Create standalone research.sh script that takes topic, prompt file and runs llm_claude
+- [ ] Create process step wrapper that takes job details from database starts a phase like research
+- [ ] Integrate process step wrapper in development_process.yaml  
+- [ ] Add CLI to start development_process with research task
+
+  # Direct research execution
+  ./scripts/research.sh "Mastermind Game" prompts/research_prompt.md

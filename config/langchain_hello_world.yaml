@@ -1,0 +1,60 @@
+name: "LLM LangChain Hello World Demo"
+description: "Hello world demo integrating llm_langchain.sh wrapper with Anthropic Claude via LangChain"
+
+initial_state: "🚀 starting"
+
+states:
+  - name: "🚀 starting"
+    description: "Process initialization"
+  - name: "🔗 calling_langchain"  
+    description: "Executing Claude LLM via LangChain wrapper"
+  - name: "✅ langchain_completed"
+    description: "LangChain execution completed successfully"
+  - name: "❌ langchain_failed"
+    description: "LangChain execution failed"
+  - name: "🏁 finished"
+    description: "Process completed"
+
+actions:
+  "🚀 starting":
+    - type: log
+      message: "Starting LLM LangChain hello world demo"
+  "🔗 calling_langchain":
+    - type: bash
+      description: "Calling Claude LLM via LangChain wrapper"
+      command: "./scripts/llm_langchain.sh {prompt}"
+      timeout: 120
+      success: "langchain_completed"
+      error_mappings:
+        "1": "langchain_failed"
+        "127": "script_not_found"
+      recoverable_errors: ["langchain_failed"]
+  "✅ langchain_completed":
+    - type: log
+      message: "LangChain Claude call completed successfully"
+  "❌ langchain_failed":
+    - type: log
+      message: "LangChain Claude call failed - check API key and network connection"
+  "🏁 finished":
+    - type: log
+      message: "LLM LangChain hello world demo completed"
+
+transitions:
+  - from: "🚀 starting"
+    to: "🔗 calling_langchain"
+    event: "start_langchain"
+  - from: "🔗 calling_langchain"
+    to: "✅ langchain_completed"
+    event: "langchain_completed"
+  - from: "🔗 calling_langchain"
+    to: "❌ langchain_failed"
+    event: "langchain_failed"
+  - from: "❌ langchain_failed"
+    to: "🏁 finished"
+    event: "finish"
+  - from: "✅ langchain_completed"
+    to: "🏁 finished"
+    event: "finish"
+  - from: "*"
+    to: "❌ langchain_failed"
+    event: "error"

@@ -101,10 +101,10 @@ actions:
       duration: 0.5
       
   research:
-    - type: sleep_action
+    - type: bash_action
       description: "Deep Research Phase"
       message: "Conducting deep research, website analysis, and competitor analysis"
-      duration: 1
+      command: "python3 scripts/process_step.py --step research --topic 'Sample Product Research' --prompt-file prompts/research_prompt.md"
       
   product_design:
     - type: sleep_action

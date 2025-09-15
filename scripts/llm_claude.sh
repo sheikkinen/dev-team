@@ -23,19 +23,18 @@ if ! command -v claude &> /dev/null; then
     exit 1
 fi
 
-# Create images directory if it doesn't exist
-if [ ! -d "./images" ]; then
-    mkdir -p "./images"
-    echo "Created ./images directory"
+# Create docs directory if it doesn't exist
+if [ ! -d "./docs" ]; then
+    mkdir -p "./docs"
+    echo "Created ./docs directory"
 fi
 
 # Execute claude with the specified options
 echo "🤖 Executing Claude with prompt: \"$prompt\""
-echo "📁 Adding access to ./images directory"
 echo "✅ Permission mode: acceptEdits"
 echo "---"
 
-claude --add-dir ./images --permission-mode acceptEdits -p "$prompt"
+claude --add-dir ./docs --allowed-tools "Bash, Glob, Grep, Read, Write, Edit, MultiEdit, WebFetch, TodoWrite, Task" --permission-mode acceptEdits -p "$prompt"
 
 echo "---"
 echo "✅ Claude execution completed"
