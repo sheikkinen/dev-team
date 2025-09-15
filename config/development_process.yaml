@@ -1,0 +1,191 @@
+# Development Process State Machine Configuration
+# Implements the complete software development lifecycle as defined in process.md
+
+# All possible states in the development process
+states:
+  - waiting                 # Initial state, waiting to start
+  - research               # Deep research, website analysis, competitor analysis
+  - product_design         # Requirements analysis, user stories, use cases, domain model
+  - backlog               # Product owner manages feature backlog
+  - architecture          # Architect updates system architecture
+  - test_planning         # Tester creates test plans
+  - module_design         # Developer updates module and function descriptions
+  - implementation        # Developer updates function implementations
+  - uiux_design          # UX Designer creates UI/UX designs
+  - frontend_dev         # Frontend Developer implements UI
+  - testing              # Tester executes test plans
+  - demo                 # Team demonstrates completed features
+  - review               # Product Owner reviews and accepts/rejects
+  - completed            # Final state - work accepted
+
+# Events that trigger state transitions
+events:
+  - start               # Initialize the development process
+  - work_done          # Work completed in current state
+  - more_work_needed   # Review indicates more work is needed
+  - accepted           # Work is accepted and complete
+  - error              # Error occurred during processing
+
+# State transitions define the workflow
+transitions:
+  # Initial research phase
+  - from: waiting
+    to: research
+    event: start
+    
+  - from: research
+    to: product_design
+    event: work_done
+    
+  - from: product_design
+    to: backlog
+    event: work_done
+    
+  # Main development loop (Kanban-style)
+  - from: backlog
+    to: architecture
+    event: work_done
+    
+  - from: architecture
+    to: test_planning
+    event: work_done
+    
+  - from: test_planning
+    to: module_design
+    event: work_done
+    
+  - from: module_design
+    to: implementation
+    event: work_done
+    
+  - from: implementation
+    to: uiux_design
+    event: work_done
+    
+  - from: uiux_design
+    to: frontend_dev
+    event: work_done
+    
+  - from: frontend_dev
+    to: testing
+    event: work_done
+    
+  - from: testing
+    to: demo
+    event: work_done
+    
+  - from: demo
+    to: review
+    event: work_done
+    
+  # Review outcomes
+  - from: review
+    to: backlog
+    event: more_work_needed
+    
+  - from: review
+    to: completed
+    event: accepted
+    
+  # Error handling - can restart from waiting
+  - from: "*"  # From any state
+    to: waiting
+    event: error
+
+# Actions to execute in each state
+actions:
+  waiting:
+    - type: log
+      message: "🚀 Development process starting..."
+    - type: sleep
+      duration: 0.5
+      
+  research:
+    - type: sleep_action
+      description: "Deep Research Phase"
+      message: "Conducting deep research, website analysis, and competitor analysis"
+      duration: 1
+      
+  product_design:
+    - type: sleep_action
+      description: "Product Design Phase"
+      message: "Creating requirements analysis, user stories, use cases, and domain model"
+      duration: 1
+      
+  backlog:
+    - type: sleep_action
+      description: "Product Owner: Backlog Management"
+      message: "Product Owner managing and prioritizing feature backlog"
+      duration: 1
+      
+  architecture:
+    - type: sleep_action
+      description: "Architect: System Architecture"
+      message: "Architect updating system design and ensuring architectural consistency"
+      duration: 1
+      
+  test_planning:
+    - type: sleep_action
+      description: "Tester: Test Planning"
+      message: "Tester creating comprehensive test plans and defining test scenarios"
+      duration: 1
+      
+  module_design:
+    - type: sleep_action
+      description: "Developer: Module and Function Descriptions"
+      message: "Developer updating module documentation and defining function interfaces"
+      duration: 1
+      
+  implementation:
+    - type: sleep_action
+      description: "Developer: Function Implementations"
+      message: "Developer implementing code based on specifications"
+      duration: 1
+      
+  uiux_design:
+    - type: sleep_action
+      description: "UX Designer: UI/UX Design"
+      message: "UX Designer creating user interface designs and experience flows"
+      duration: 1
+      
+  frontend_dev:
+    - type: sleep_action
+      description: "Frontend Developer: Frontend Implementation"
+      message: "Frontend Developer implementing UI components and integrating with backend"
+      duration: 1
+      
+  testing:
+    - type: sleep_action
+      description: "Tester: Testing"
+      message: "Tester executing test plans and validating acceptance criteria"
+      duration: 1
+      
+  demo:
+    - type: sleep_action
+      description: "Team: Demo"
+      message: "Team demonstrating completed features to stakeholders"
+      duration: 1
+      
+  review:
+    - type: sleep_action
+      description: "Product Owner: Review and Accept"
+      message: "Product Owner reviewing completed work and making acceptance decision"
+      duration: 1
+    - type: log
+      message: "🎯 Review complete - work accepted!"
+      
+  completed:
+    - type: log
+      message: "🎉 Development process completed successfully!"
+    - type: sleep
+      duration: 1
+
+# Initial state
+initial_state: waiting
+
+# Configuration metadata
+metadata:
+  name: "Development Process State Machine"
+  description: "Complete software development lifecycle workflow"
+  version: "1.0.0"
+  based_on: "process.md - Kanban-style development process"

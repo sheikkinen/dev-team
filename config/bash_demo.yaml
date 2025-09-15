@@ -1,0 +1,60 @@
+name: "Bash Action Demo Process"
+description: "Demonstrates bash action execution with parameter substitution and error handling"
+
+states:
+  - name: "🚀 starting"
+    description: "Process initialization"
+  - name: "📝 processing_command"  
+    description: "Executing bash command"
+  - name: "✅ command_completed"
+    description: "Command executed successfully"
+  - name: "❌ command_failed"
+    description: "Command execution failed"
+  - name: "🏁 finished"
+    description: "Process completed"
+
+start_state: "🚀 starting"
+
+actions:
+  "🚀 starting":
+    - type: log
+      message: "Starting bash action demo process"
+  "📝 processing_command":
+    - type: bash
+      description: "Echo command with parameter substitution"
+      command: "echo 'Hello {name}! Processing file: {filename} at $(date)'"
+      timeout: 10
+      success: "command_completed"
+      error_mappings:
+        "1": "command_failed"
+        "127": "command_not_found"
+      recoverable_errors: []
+  "✅ command_completed":
+    - type: log
+      message: "Bash command completed successfully"
+  "❌ command_failed":
+    - type: log
+      message: "Bash command failed, retrying..."
+  "🏁 finished":
+    - type: log
+      message: "Bash action demo process completed"
+
+transitions:
+  - from: "🚀 starting"
+    to: "📝 processing_command"
+    event: "start_processing"
+  - from: "📝 processing_command"
+    to: "✅ command_completed"
+    event: "command_completed"
+  - from: "📝 processing_command"
+    to: "❌ command_failed"
+    event: "command_failed"
+  - from: "❌ command_failed"
+    to: "📝 processing_command"
+    event: "retry"
+  - from: "✅ command_completed"
+    to: "🏁 finished"
+    event: "finish"
+  - from: "*"
+    to: "❌ command_failed"
+    event: "error"
