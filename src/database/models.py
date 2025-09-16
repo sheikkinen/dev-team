@@ -98,6 +98,38 @@ class Database:
                 )
             """)
             
+            # User stories - stores individual stories split from research
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS user_stories (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    story_id TEXT UNIQUE NOT NULL,
+                    research_id TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    priority TEXT DEFAULT 'medium',
+                    components TEXT,
+                    status TEXT DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (research_id) REFERENCES research_results (job_id)
+                )
+            """)
+            
+            # Architecture versions - stores incremental architecture designs
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS architecture_versions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    version_id TEXT UNIQUE NOT NULL,
+                    story_id TEXT NOT NULL,
+                    research_id TEXT NOT NULL,
+                    components TEXT NOT NULL,
+                    data_flow TEXT,
+                    changes_summary TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (story_id) REFERENCES user_stories (story_id),
+                    FOREIGN KEY (research_id) REFERENCES research_results (job_id)
+                )
+            """)
+            
             # Create indexes for better query performance
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs (status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_created ON jobs (created_at)")
@@ -106,6 +138,10 @@ class Database:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_state_base ON pipeline_state (job_id, base_filename)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_research_job ON research_results (job_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_research_timestamp ON research_results (completion_timestamp)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stories_research ON user_stories (research_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_stories_status ON user_stories (status)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_arch_story ON architecture_versions (story_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_arch_research ON architecture_versions (research_id)")
             
             conn.commit()
 
@@ -496,3 +532,133 @@ def get_pipeline_state_model() -> PipelineStateModel:
 def get_research_result_model() -> ResearchResultModel:
     """Get research result model instance"""
     return ResearchResultModel(get_database())
+
+class UserStoryModel:
+    """Model for user story management"""
+    
+    def __init__(self, db: Database):
+        self.db = db
+    
+    def create_stories(self, research_id: str, stories: List[Dict[str, Any]]) -> List[str]:
+        """Create multiple user stories from backlog splitting"""
+        story_ids = []
+        with self.db._get_connection() as conn:
+            for i, story in enumerate(stories):
+                story_id = f"{research_id}_story_{i+1}"
+                conn.execute("""
+                    INSERT INTO user_stories 
+                    (story_id, research_id, title, description, priority, components)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (
+                    story_id, research_id, 
+                    story['title'], story['description'], 
+                    story.get('priority', 'medium'),
+                    json.dumps(story.get('components', []))
+                ))
+                story_ids.append(story_id)
+            conn.commit()
+        return story_ids
+    
+    def get_stories_by_research(self, research_id: str) -> List[Dict[str, Any]]:
+        """Get all stories for a research ID"""
+        with self.db._get_connection() as conn:
+            rows = conn.execute("""
+                SELECT * FROM user_stories 
+                WHERE research_id = ? 
+                ORDER BY created_at
+            """, (research_id,)).fetchall()
+            
+            stories = []
+            for row in rows:
+                story = dict(row)
+                if story['components']:
+                    story['components'] = json.loads(story['components'])
+                stories.append(story)
+            return stories
+    
+    def get_next_pending_story(self) -> Optional[Dict[str, Any]]:
+        """Get next pending story for processing"""
+        with self.db._get_connection() as conn:
+            row = conn.execute("""
+                SELECT * FROM user_stories 
+                WHERE status = 'pending' 
+                ORDER BY created_at 
+                LIMIT 1
+            """).fetchone()
+            
+            if row:
+                story = dict(row)
+                if story['components']:
+                    story['components'] = json.loads(story['components'])
+                return story
+            return None
+
+def get_user_story_model() -> UserStoryModel:
+    """Get user story model instance"""
+    return UserStoryModel(get_database())
+
+class ArchitectureModel:
+    """Model for architecture version management"""
+    
+    def __init__(self, db: Database):
+        self.db = db
+    
+    def create_version(self, story_id: str, research_id: str, architecture_data: Dict[str, Any]) -> str:
+        """Create new architecture version for a story"""
+        version_id = f"{story_id}_arch_{len(self.get_versions_by_story(story_id)) + 1}"
+        
+        with self.db._get_connection() as conn:
+            conn.execute("""
+                INSERT INTO architecture_versions 
+                (version_id, story_id, research_id, components, data_flow, changes_summary)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                version_id, story_id, research_id,
+                json.dumps(architecture_data.get('components', [])),
+                json.dumps(architecture_data.get('data_flow', [])),
+                architecture_data.get('changes', '')
+            ))
+            conn.commit()
+        return version_id
+    
+    def get_versions_by_story(self, story_id: str) -> List[Dict[str, Any]]:
+        """Get all architecture versions for a story"""
+        with self.db._get_connection() as conn:
+            rows = conn.execute("""
+                SELECT * FROM architecture_versions 
+                WHERE story_id = ? 
+                ORDER BY created_at
+            """, (story_id,)).fetchall()
+            
+            versions = []
+            for row in rows:
+                version = dict(row)
+                if version['components']:
+                    version['components'] = json.loads(version['components'])
+                if version['data_flow']:
+                    version['data_flow'] = json.loads(version['data_flow'])
+                versions.append(version)
+            return versions
+    
+    def get_latest_architecture(self, research_id: str) -> Optional[Dict[str, Any]]:
+        """Get the most recent architecture for a research project"""
+        with self.db._get_connection() as conn:
+            row = conn.execute("""
+                SELECT * FROM architecture_versions 
+                WHERE research_id = ? 
+                ORDER BY created_at DESC 
+                LIMIT 1
+            """, (research_id,)).fetchone()
+            
+            if row:
+                version = dict(row)
+                if version['components']:
+                    version['components'] = json.loads(version['components'])
+                if version['data_flow']:
+                    version['data_flow'] = json.loads(version['data_flow'])
+                return version
+            return None
+
+def get_architecture_model() -> ArchitectureModel:
+    """Get architecture model instance"""
+    return ArchitectureModel(get_database())

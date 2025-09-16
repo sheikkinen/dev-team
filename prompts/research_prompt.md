@@ -1,60 +1,35 @@
-# Game Design Document Research Prompt
+# Game Research: Core Functionality Analysis
 
-## Game Concept
-{TOPIC}
+**Game Concept:** {TOPIC}
 
-## Objective
-Conduct comprehensive research to develop a complete Game Design Document (GDD) for the specified game concept. Your research should inform all aspects of game development from concept to implementation.
+## Research Objective
+Provide a detailed explanation of the **core functionality** and fundamental gameplay systems that define this game.
 
-## Research Areas
-1. **Game Genre Analysis**
-   - Genre conventions and player expectations
-   - Successful games in the same genre
-   - Innovation opportunities and differentiation
-   - Core gameplay mechanics and systems
+## Research Focus
+**What is this game and how does it work?** Describe the essential gameplay experience in detail.
 
-2. **Target Audience Research**
-   - Player demographics and psychographics
-   - Platform preferences and gaming habits
-   - Monetization expectations and spending patterns
-   - Accessibility requirements and considerations
+## Research Output
 
-3. **Competitive Analysis**
-   - Direct and indirect competitors
-   - Market positioning and unique selling points
-   - Pricing strategies and business models
-   - Community feedback and reviews analysis
+### Game Overview (150 words max)
+Explain what this game is:
+- Genre and basic concept
+- Setting and player role
+- Primary objective and win conditions
 
-4. **Technical Requirements**
-   - Platform specifications and limitations
-   - Engine and technology stack recommendations
-   - Performance requirements and optimization
-   - Development tools and pipeline considerations
+### Core Functionality (400 words max)
+Detailed explanation of how the game works:
+- **Primary Game Loop** - Step-by-step breakdown of what players do repeatedly
+- **Essential Mechanics** - The 3-5 core systems that drive gameplay
+- **Player Actions** - Specific interactions and choices available
+- **System Interactions** - How different mechanics connect and influence each other
+- **Progression Elements** - How the game evolves and keeps players engaged
+- **Feedback Systems** - How the game responds to player actions
 
-5. **Art and Audio Direction**
-   - Visual style references and mood boards
-   - Audio design principles and music direction
-   - UI/UX patterns and interface design
-   - Asset creation pipeline and requirements
+### Technical Implementation (150 words max)
+Basic technical considerations:
+- Platform and interface requirements
+- Key technical challenges for core systems
+- Performance considerations for core mechanics
 
-6. **Monetization Strategy**
-   - Revenue model analysis (premium, F2P, subscription)
-   - In-game economy design principles
-   - Market pricing analysis
-   - Post-launch content strategy
-
-## Deliverables
-Please provide a structured Game Design Document including:
-1. **Executive Summary** - High-level game vision and goals
-2. **Game Overview** - Core concept, genre, platform, and target audience
-3. **Gameplay Mechanics** - Detailed system descriptions and interactions
-4. **Technical Specifications** - Engine requirements, performance targets
-5. **Art Bible** - Visual style guide and asset requirements
-6. **Audio Design** - Sound effects, music, and voice direction
-7. **User Interface** - UI/UX wireframes and interaction patterns
-8. **Monetization Plan** - Business model and revenue projections
-9. **Development Timeline** - Milestones and resource requirements
-10. **Risk Assessment** - Technical and market risks with mitigation strategies
-
-## Output Format
-Structure your GDD research with clear sections, visual references where applicable, and actionable development guidelines. Focus on creating a comprehensive blueprint that can guide the entire development process from pre-production through launch and post-launch support.
+## Format
+**One-page detailed analysis.** Focus entirely on explaining what this game is and how its core systems function. Provide sufficient detail for someone to understand the fundamental gameplay experience.

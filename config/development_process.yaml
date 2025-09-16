@@ -5,12 +5,20 @@
 states:
   - waiting_for_job        # Initial state, waiting for job to be added via CLI
   - researching           # Deep research using research.sh script
+  - waiting_for_backlog   # Waiting for backlog processing
+  - splitting_stories     # Split research into user stories
+  - waiting_for_architecture # Waiting for architecture processing
+  - planning_architecture # Plan architecture for user stories
   - completed             # Final state - research completed
 
 # Events that trigger state transitions
 events:
   - job_added             # Job added to database_queue via CLI
   - research_done         # Research completed successfully
+  - backlog_requested     # Backlog processing requested
+  - stories_split         # Stories splitting completed
+  - architecture_requested # Architecture processing requested
+  - architecture_planned  # Architecture planning completed
   - error                 # Error occurred during processing
 
 # State transitions define the workflow
@@ -22,8 +30,28 @@ transitions:
     
   # Research completion
   - from: researching
-    to: completed
+    to: waiting_for_backlog
     event: research_done
+    
+  # Backlog processing
+  - from: waiting_for_backlog
+    to: splitting_stories
+    event: backlog_requested
+    
+  # Stories completion
+  - from: splitting_stories
+    to: waiting_for_architecture
+    event: stories_split
+    
+  # Architecture processing
+  - from: waiting_for_architecture
+    to: planning_architecture
+    event: architecture_requested
+    
+  # Architecture completion
+  - from: planning_architecture
+    to: completed
+    event: architecture_planned
     
   # Error handling - can restart from waiting
   - from: "*"  # From any state
@@ -45,12 +73,40 @@ actions:
       error_mappings:
         "1": "error"
         "2": "error"
+        
+  waiting_for_backlog:
+    - type: check_database_queue
+      description: "Checking for backlog processing requests"
+      
+  splitting_stories:
+    - type: bash
+      description: "Running backlog script to split research into stories"
+      command: "scripts/backlog.sh '{research_id}' 'prompts/backlog_prompt.md' '{id}'"
+      timeout: 180
+      success: "stories_split"
+      error_mappings:
+        "1": "error"
+        "2": "error"
+        
+  waiting_for_architecture:
+    - type: check_database_queue
+      description: "Checking for architecture processing requests"
+      
+  planning_architecture:
+    - type: bash
+      description: "Running architecture script to plan system design"
+      command: "scripts/architecture.sh '{story_id}' 'prompts/architecture_prompt.md' '{id}'"
+      timeout: 240
+      success: "architecture_planned"
+      error_mappings:
+        "1": "error"
+        "2": "error"
       
   completed:
     - type: database_record_action
-      description: "Recording research completion"
-      step_name: "research_completed"
-      step_description: "Research phase completed successfully"
+      description: "Recording completion"
+      step_name: "process_completed"
+      step_description: "Development process completed successfully"
 
 # Initial state
 initial_state: waiting_for_job
@@ -58,6 +114,6 @@ initial_state: waiting_for_job
 # Configuration metadata
 metadata:
   name: "Development Process State Machine"
-  description: "Simplified workflow: waiting for job -> researching"
+  description: "Workflow: waiting for job -> researching -> backlog processing -> architecture planning"
   version: "2.0.0"
   based_on: "Simplified research workflow with database queue integration"

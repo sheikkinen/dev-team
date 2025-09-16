@@ -1,0 +1,15 @@
+Latest Architecture for: mastermind_e2e_test
+Version ID: mastermind_e2e_test_story_1_arch_1
+Story: mastermind_e2e_test_story_1
+Created: 2025-09-16 04:13
+Changes: Added two new components: CodemakerUI and SecretCodeManager. The CodemakerUI allows the codemaker to set the secret code, which is then passed to the SecretCodeManager to store and manage the game state.
+
+Components:
+  - CodemakerUI: Allows the codemaker to set the secret code
+    Interfaces: setSecretCode
+    Dependencies: SecretCodeManager
+  - SecretCodeManager: Manages the secret code and provides feedback to the codebreaker
+    Interfaces: setSecretCode, getFeedback
+
+Data Flow:
+  CodemakerUI → SecretCodeManager: Secret code

@@ -127,7 +127,8 @@ class LangChainClient:
                     from langchain_anthropic import ChatAnthropic
                     self.llm = ChatAnthropic(
                         api_key=self.api_key,
-                        model=self.model or "claude-sonnet-4-20250514",
+                        model=self.model or "claude-3-haiku-20240307",  # Using Haiku for faster testing
+                        # model=self.model or "claude-sonnet-4-20250514",  # Uncomment for production
                         temperature=0.1,
                         max_tokens=4000,
                     )
@@ -147,6 +148,92 @@ class LangChainClient:
         
         return self.llm
     
+    def split_into_array(self, prompt: str, **kwargs) -> list:
+        """
+        Send a prompt and get structured JSON array response.
+        
+        Args:
+            prompt: User prompt/message
+            **kwargs: Additional parameters for the LLM
+            
+        Returns:
+            Parsed JSON array from LLM response
+            
+        Raises:
+            RuntimeError: If LLM request fails or JSON parsing fails
+        """
+        try:
+            response_text = self.chat(prompt, **kwargs)
+            # Extract JSON from response if wrapped in markdown
+            import json
+            import re
+            
+            # Try to find JSON in markdown code blocks
+            json_match = re.search(r'```json\n(.*?)\n```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            
+            # Parse JSON
+            return json.loads(response_text)
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            raise RuntimeError(f"Invalid JSON response: {e}")
+        except Exception as e:
+            logger.error(f"Split array request failed: {e}")
+            raise RuntimeError(f"LLM split array failed: {e}")
+
+    def plan_architecture(self, current_architecture: str, research: str, user_story: str, **kwargs) -> dict:
+        """
+        Plan architecture for a user story with context.
+        
+        Args:
+            current_architecture: Current architecture JSON or description
+            research: Research content for context
+            user_story: User story to implement
+            **kwargs: Additional parameters for the LLM
+            
+        Returns:
+            Parsed JSON dict with architecture components
+            
+        Raises:
+            RuntimeError: If LLM request fails or JSON parsing fails
+        """
+        try:
+            # Read architecture prompt template
+            from pathlib import Path
+            prompt_file = Path("prompts/architecture_prompt.md")
+            if not prompt_file.exists():
+                raise RuntimeError("Architecture prompt template not found")
+            
+            prompt_template = prompt_file.read_text()
+            
+            # Substitute placeholders
+            prompt = prompt_template.replace("{CURRENT_ARCHITECTURE}", current_architecture or "None")
+            prompt = prompt.replace("{RESEARCH}", research)
+            prompt = prompt.replace("{USER_STORY}", user_story)
+            
+            response_text = self.chat(prompt, **kwargs)
+            
+            # Extract JSON from response
+            import json
+            import re
+            
+            # Try to find JSON in markdown code blocks
+            json_match = re.search(r'```json\n(.*?)\n```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            
+            # Parse JSON
+            return json.loads(response_text)
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            raise RuntimeError(f"Invalid JSON response: {e}")
+        except Exception as e:
+            logger.error(f"Architecture planning failed: {e}")
+            raise RuntimeError(f"LLM architecture planning failed: {e}")
+
     def chat(self, prompt: str, **kwargs) -> str:
         """
         Send a chat message and get response.

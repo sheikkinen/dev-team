@@ -1,0 +1,19 @@
+Stories for research: mastermind_e2e_test
+Story ID                  Title                          Priority Status    
+---------------------------------------------------------------------------
+mastermind_e2e_test_story_1 Set Secret Code                high     pending   
+  Description: As the codemaker, I want to set a secret code so that the codebreaker can attempt to guess it.
+  Components: code_creation
+
+mastermind_e2e_test_story_2 Make Guess                     high     pending   
+  Description: As the codebreaker, I want to make a guess at the secret code so that I can receive feedback and refine my next guess.
+  Components: guess_input
+
+mastermind_e2e_test_story_3 Provide Feedback               high     pending   
+  Description: As the codemaker, I want to provide feedback on the codebreaker's guess so that they can use the information to make a more informed next guess.
+  Components: feedback_system
+
+mastermind_e2e_test_story_4 Deduce Secret Code             high     pending   
+  Description: As the codebreaker, I want to use the feedback provided by the codemaker to deduce the secret code through a series of guesses.
+  Components: deduction_system
+
